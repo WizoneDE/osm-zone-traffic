@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>OSM Traffic Zone Inspector</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1a1a1a; --muted: #666; --line: #e3e3e3;
+    --track: #c9c9c9; --accent: #2563eb; --seg-bg: #f1f1f1;
+    --ok: #2e7d32; --bad: #c62828; --beta: #1565c0; --proto: #757575;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #202124; --fg: #e8eaed; --muted: #9aa0a6; --line: #3c4043; --track: #5f6368; --accent: #8ab4f8; --seg-bg: #2d2e31; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; width: 320px; background: var(--bg); color: var(--fg); font: 13px/1.4 system-ui, sans-serif; }
+  header { padding: 12px 14px 8px; font-weight: 700; font-size: 14px; border-bottom: 1px solid var(--line); }
+  section { padding: 6px 14px; border-bottom: 1px solid var(--line); }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 0; }
+  .row label { flex: 1; cursor: pointer; }
+  .row.sub label { padding-left: 14px; color: var(--muted); }
+  .row.disabled { opacity: .45; pointer-events: none; }
+  .hint { color: var(--muted); font-size: 11px; padding: 0 0 4px; }
+  .tag { display: inline-block; padding: 0 6px; border-radius: 9px; color: #fff; font-size: 11px; font-weight: 600; }
+
+  /* On/off switch */
+  .sw { position: relative; width: 34px; height: 20px; flex: none; }
+  .sw input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+  .sw span { position: absolute; inset: 0; border-radius: 10px; background: var(--track); transition: background .15s; pointer-events: none; }
+  .sw span::after { content: ''; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s; }
+  .sw input:checked + span { background: var(--accent); }
+  .sw input:checked + span::after { transform: translateX(14px); }
+  .sw input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* Two-option toggle (Deutsch | English) */
+  .seg { display: inline-flex; background: var(--seg-bg); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg input { position: absolute; opacity: 0; pointer-events: none; }
+  .seg label { padding: 3px 10px; cursor: pointer; color: var(--muted); }
+  .seg input:checked + label { background: var(--accent); color: var(--bg); font-weight: 600; }
+  .seg input:focus-visible + label { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+  /* Fold-out lists with checkboxes */
+  details summary { cursor: pointer; padding: 3px 0; }
+  .checks { display: grid; grid-template-columns: minmax(0, 1fr); padding: 2px 0 4px 6px; }
+  .checks label { display: flex; align-items: center; gap: 6px; padding: 1px 0; cursor: pointer; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .checks input { margin: 0; accent-color: var(--accent); }
+  .status { display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 2px 0 4px; }
+  .status label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+  .swatch { display: inline-block; width: 16px; height: 5px; border-radius: 2px; }
+
+  /* Country list */
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  td { padding: 2px 2px; vertical-align: middle; }
+  td.code { font-weight: 600; width: 34px; }
+  td.right { text-align: right; white-space: nowrap; }
+
+  footer { padding: 8px 14px 12px; color: var(--muted); font-size: 11px; }
+  footer a { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>OSM Traffic Zone Inspector</header>
+
+<section>
+  <div class="row">
+    <label for="enabled" data-i18n="enabled"></label>
+    <span class="sw"><input type="checkbox" id="enabled"><span></span></span>
+  </div>
+  <div class="row sub" data-needs="enabled">
+    <label for="icons" data-i18n="icons"></label>
+    <span class="sw"><input type="checkbox" id="icons"><span></span></span>
+  </div>
+  <div class="row sub" data-needs="enabled">
+    <label for="legend" data-i18n="legend"></label>
+    <span class="sw"><input type="checkbox" id="legend"><span></span></span>
+  </div>
+  <div class="row sub" data-needs="enabled legend">
+    <label for="stats" data-i18n="stats"></label>
+    <span class="sw"><input type="checkbox" id="stats"><span></span></span>
+  </div>
+  <div class="status" id="statusList"></div>
+</section>
+
+<section>
+  <div class="row">
+    <label for="editor"><span data-i18n="editor"></span> <span class="tag" style="background: var(--beta)">Beta</span></label>
+    <span class="sw"><input type="checkbox" id="editor"><span></span></span>
+  </div>
+  <div class="hint" data-i18n="editorHint"></div>
+</section>
+
+<section>
+  <details>
+    <summary data-i18n="roads"></summary>
+    <div class="checks" id="roadList"></div>
+  </details>
+  <details>
+    <summary data-i18n="countries"></summary>
+    <table id="countryTable"></table>
+    <div class="hint" id="sourceLine"></div>
+  </details>
+</section>
+
+<section>
+  <div class="row">
+    <span data-i18n="lang"></span>
+    <span class="seg">
+      <input type="radio" name="lang" id="lang-de" value="de"><label for="lang-de">Deutsch</label>
+      <input type="radio" name="lang" id="lang-en" value="en"><label for="lang-en">English</label>
+    </span>
+  </div>
+</section>
+
+<footer data-i18n="footer"></footer>
+
+<script src="settings.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>

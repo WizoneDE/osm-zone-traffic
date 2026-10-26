@@ -1,0 +1,112 @@
+// Writes the borders of the Belgian regions into content.js, between the markers
+// "BEGIN GENERATED REGIONS" and "END GENERATED REGIONS".
+//
+//   node dev/build-regions.js            fetches the boundaries from the Overpass API
+//   node dev/build-regions.js file.json  uses a saved Overpass answer instead
+//
+// iD's country lookup (country-coder) knows Belgium but not its regions, and the
+// Belgian zone:traffic values name the region (BE-VLG:urban). Flanders and the
+// Brussels-Capital Region are stored; a point in Belgium that lies in neither is
+// in Wallonia. Data © OpenStreetMap contributors, ODbL 1.0.
+const fs = require('fs');
+const path = require('path');
+
+const target = path.join(__dirname, '..', 'content.js');
+const BEGIN = '  // BEGIN GENERATED REGIONS\n';
+const END = '  // END GENERATED REGIONS\n';
+const REGIONS = { 'BE-VLG': 53134, 'BE-BRU': 54094 };
+/** Largest allowed shift of the border by simplifying, in metres. */
+const TOLERANCE_M = 20;
+/** Coordinates are stored as integers in 1e-5 degrees (about 1 m). */
+const SCALE = 1e5;
+
+async function load() {
+  if (process.argv[2]) return JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+  const query = `[out:json][timeout:120];relation(id:${Object.values(REGIONS).join(',')});out geom;`;
+  const response = await fetch('https://overpass-api.de/api/interpreter', {
+    method: 'POST',
+    headers: { 'User-Agent': 'osm-zone-traffic build-regions' },
+    body: new URLSearchParams({ data: query }),
+  });
+  if (!response.ok) throw new Error(`Overpass: HTTP ${response.status}`);
+  return response.json();
+}
+
+/** Joins the member ways of a boundary relation into closed rings. */
+function rings(relation) {
+  const key = (p) => `${p.lon},${p.lat}`;
+  const open = relation.members
+    .filter((m) => m.type === 'way' && (m.role === 'outer' || m.role === 'inner') && m.geometry)
+    .map((m) => m.geometry.map((p) => ({ lon: p.lon, lat: p.lat })));
+  const result = [];
+  while (open.length) {
+    let ring = open.shift();
+    while (key(ring[0]) !== key(ring[ring.length - 1])) {
+      const end = key(ring[ring.length - 1]);
+      const i = open.findIndex((w) => key(w[0]) === end || key(w[w.length - 1]) === end);
+      if (i < 0) throw new Error(`relation ${relation.id}: ring does not close`);
+      const [next] = open.splice(i, 1);
+      ring = ring.concat((key(next[0]) === end ? next : next.reverse()).slice(1));
+    }
+    result.push(ring);
+  }
+  return result;
+}
+
+/** Douglas-Peucker in a local metric projection. */
+function simplify(ring) {
+  const lat0 = (ring[0].lat * Math.PI) / 180;
+  const pts = ring.map((p) => [p.lon * 111320 * Math.cos(lat0), p.lat * 110540]);
+  const keep = new Uint8Array(pts.length);
+  keep[0] = keep[pts.length - 1] = 1;
+  const stack = [[0, pts.length - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop();
+    const [ax, ay] = pts[a], [bx, by] = pts[b];
+    const len = Math.hypot(bx - ax, by - ay);
+    let worst = -1, index = -1;
+    for (let i = a + 1; i < b; i++) {
+      const [px, py] = pts[i];
+      const d = len ? Math.abs((bx - ax) * (ay - py) - (ax - px) * (by - ay)) / len : Math.hypot(px - ax, py - ay);
+      if (d > worst) { worst = d; index = i; }
+    }
+    if (worst > TOLERANCE_M) { keep[index] = 1; stack.push([a, index], [index, b]); }
+  }
+  return ring.filter((_, i) => keep[i]);
+}
+
+/** Ring → "lon,lat;dlon,dlat;…" in 1e-5 degrees, deltas after the first point. */
+function encode(ring) {
+  let px = 0, py = 0;
+  return ring.map((p, i) => {
+    const x = Math.round(p.lon * SCALE), y = Math.round(p.lat * SCALE);
+    const out = i ? `${x - px},${y - py}` : `${x},${y}`;
+    px = x; py = y;
+    return out;
+  }).join(';');
+}
+
+(async () => {
+  const data = await load();
+  const lines = [];
+  let points = 0;
+  for (const [code, id] of Object.entries(REGIONS)) {
+    const relation = data.elements.find((e) => e.type === 'relation' && e.id === id);
+    if (!relation) throw new Error(`relation ${id} (${code}) missing`);
+    if (relation.tags?.['ISO3166-2'] !== code) throw new Error(`relation ${id} is not ${code}`);
+    const encoded = rings(relation).map(simplify).filter((r) => r.length >= 4);
+    points += encoded.reduce((n, r) => n + r.length, 0);
+    lines.push(`    ${JSON.stringify(code)}: [\n${encoded.map((r) => `      ${JSON.stringify(encode(r))},\n`).join('')}    ],\n`);
+  }
+  const stamp = data.osm3s?.timestamp_osm_base || new Date().toISOString();
+  const block = `${BEGIN}  // OSM data ${stamp}, simplified to ${TOLERANCE_M} m. © OpenStreetMap contributors, ODbL 1.0.\n`
+    + `  /** Region → rings, each "lon,lat;dlon,dlat;…" in 1e-5 degrees. @type {Record<string, string[]>} */\n`
+    + `  const REGION_RINGS = {\n${lines.join('')}  };\n  const REGION_TOLERANCE_M = ${TOLERANCE_M};\n${END}`;
+  const source = fs.readFileSync(target, 'utf8');
+  const start = source.indexOf(BEGIN);
+  const end = source.indexOf(END);
+  if (start < 0 || end < start) throw new Error('markers not found in content.js');
+  // Written only at the very end, after everything above succeeded.
+  fs.writeFileSync(target, source.slice(0, start) + block + source.slice(end + END.length));
+  console.log(`${points} points, ${block.length} characters written to content.js`);
+})().catch((error) => { console.error(error.message); process.exit(1); });

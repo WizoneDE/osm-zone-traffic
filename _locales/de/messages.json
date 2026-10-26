@@ -1,0 +1,14 @@
+{
+  "extName": {
+    "message": "OSM Traffic Zone Inspector",
+    "description": "Name der Erweiterung."
+  },
+  "extDescription": {
+    "message": "Zeigt im OSM-Editor iD, welche Straßen zone:traffic haben, und hilft beim Ergänzen. Speichert nie selbst.",
+    "description": "Beschreibung in chrome://extensions. Chrome erlaubt höchstens 132 Zeichen."
+  },
+  "extActionTitle": {
+    "message": "OSM Traffic Zone Inspector – Einstellungen",
+    "description": "Tooltip des Symbols in der Symbolleiste."
+  }
+}

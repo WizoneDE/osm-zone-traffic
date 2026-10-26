@@ -1,0 +1,14 @@
+{
+  "extName": {
+    "message": "OSM Traffic Zone Inspector",
+    "description": "Name of the extension."
+  },
+  "extDescription": {
+    "message": "Shows in the OSM editor iD which roads have zone:traffic and helps to add it. Never saves anything itself.",
+    "description": "Description in chrome://extensions. Chrome allows at most 132 characters."
+  },
+  "extActionTitle": {
+    "message": "OSM Traffic Zone Inspector – settings",
+    "description": "Tooltip of the toolbar icon."
+  }
+}
