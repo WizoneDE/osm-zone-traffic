@@ -935,6 +935,8 @@
   const SVG_NS = 'http://www.w3.org/2000/svg';
   const ICON_HEIGHT = 20; // px
   const ICON_MIN_LINE = 36; // px of visible line needed for an icon
+  // iD draws tunnels (tunnel=yes etc.) in .layer-osm.covered, not in .lines.
+  const WAY_STROKES = '.layer-osm.lines path.way.line.stroke, .layer-osm.covered path.way.line.stroke';
 
   /** @type {SVGGElement | null} */ let iconLayer = null;
   /** @type {HTMLDivElement | null} */ let legend = null;
@@ -1164,7 +1166,7 @@
     redrawPending = false;
     if (!document.querySelector('.layer-osm')) { iconLayer?.replaceChildren(); return; }
     updateViewCountry();
-    const lines = /** @type {SVGPathElement[]} */ (Array.from(document.querySelectorAll('.layer-osm.lines path.way.line.stroke')));
+    const lines = /** @type {SVGPathElement[]} */ (Array.from(document.querySelectorAll(WAY_STROKES)));
     const around = collectSurroundings(lines);
     const view = mapView();
     const mpp = view ? view.metresPerPixel : 0;
@@ -1469,7 +1471,7 @@
 
   /** The way's entity as drawn now. @param {string} id */
   function drawnWay(id) {
-    for (const path of document.querySelectorAll('.layer-osm.lines path.way.line.stroke')) {
+    for (const path of document.querySelectorAll(WAY_STROKES)) {
       const e = entityOf(path);
       if (e && e.id === id) return { entity: e, path: /** @type {SVGPathElement} */ (path) };
     }
@@ -1529,7 +1531,7 @@
   function panelResult() {
     const drawn = drawnWay(panelWay);
     if (!drawn) return null;
-    const lines = /** @type {SVGPathElement[]} */ (Array.from(document.querySelectorAll('.layer-osm.lines path.way.line.stroke')));
+    const lines = /** @type {SVGPathElement[]} */ (Array.from(document.querySelectorAll(WAY_STROKES)));
     const around = collectSurroundings(lines);
     const place = panelData.place || placeOfPath(drawn.path, panelWay);
     const ctx = contextFor(drawn.entity, around, place);
