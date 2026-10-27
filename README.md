@@ -135,8 +135,8 @@ the two at a time.
 
 The code is released under the [MIT License](LICENSE). The traffic sign artwork from
 Wikimedia Commons (`dev/signs/` files starting with a country code, and the generated
-`SIGN_ART` block in `content.js`) is in the public domain and not covered by that license.
-The Belgian region borders (the generated `REGION_RINGS` block in `content.js`) are
+`generated/signs.js`) is in the public domain and not covered by that license.
+The Belgian region borders (the generated `generated/regions.js`) are
 © OpenStreetMap contributors, available under the
 [Open Database License 1.0](https://opendatacommons.org/licenses/odbl/1-0/).
 
@@ -281,8 +281,8 @@ nutze jeweils eine der beiden.
 ### Lizenz
 
 Der Code steht unter der [MIT-Lizenz](LICENSE). Die Verkehrszeichen von Wikimedia Commons
-(Dateien in `dev/signs/` mit Länderkürzel und der erzeugte `SIGN_ART`-Block in
-`content.js`) sind gemeinfrei und fallen nicht unter diese Lizenz. Die belgischen
-Regionsgrenzen (der erzeugte `REGION_RINGS`-Block in `content.js`) sind
+(Dateien in `dev/signs/` mit Länderkürzel und die erzeugte Datei
+`generated/signs.js`) sind gemeinfrei und fallen nicht unter diese Lizenz. Die belgischen
+Regionsgrenzen (die erzeugte Datei `generated/regions.js`) sind
 © OpenStreetMap-Mitwirkende, verfügbar unter der
 [Open Database License 1.0](https://opendatacommons.org/licenses/odbl/1-0/).

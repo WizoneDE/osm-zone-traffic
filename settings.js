@@ -187,6 +187,5 @@ function oztTables() {
     countries: OZT_COUNTRIES,
     unverified: OZT_UNVERIFIED,
     townSigns: OZT_TOWN_SIGNS,
-    source: OZT_SOURCE,
   };
 }

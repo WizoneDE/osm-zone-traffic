@@ -2,6 +2,9 @@
 const fs = require('fs');
 const path = require('path');
 const vm = require('vm');
+// The generated data comes first, as in the manifest.
+require('../generated/signs.js');
+require('../generated/regions.js');
 const api = require('../content.js');
 // settings.js is a plain browser script (its names are globals there); run it and pick them up.
 const tables = vm.runInNewContext(`${fs.readFileSync(path.join(__dirname, '..', 'settings.js'), 'utf8')}
